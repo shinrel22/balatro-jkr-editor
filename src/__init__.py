@@ -6,6 +6,8 @@ from copy import deepcopy
 from src.constants.cards import CARD_NEGATIVE_EDITION
 from src.models.joker import Joker
 from src.models.tag import Tag
+from src.models.game import RandomRates
+from src.models.shops import JokerShop
 from src.utils.lua_parser import lua_parser
 from src.utils import decompress_data, compress_data
 from src.constants.dirs import TMP_DIR
@@ -37,7 +39,42 @@ class JkrEditor(object):
 
         self._money: float = self._data['GAME']['dollars']
 
-        self._joker_slots: int = self._data['GAME']['max_jokers']
+        self._joker_slots: int = self._data['cardAreas']['jokers']['config']['card_limit']
+
+        self._hand_size: int = self._data['cardAreas']['hand']['config']['card_limit']
+
+        self._random_rates: RandomRates = self._load_random_rates()
+
+        self._joker_shop: JokerShop | None = self._load_joker_shop()
+
+        self._probabilities: float = self._data['GAME']['probabilities']['normal']
+
+    @property
+    def joker_shop(self) -> JokerShop | None:
+        return self._joker_shop
+
+    def _load_joker_shop(self) -> JokerShop | None:
+        shop_jokers = self._data['cardAreas'].get('shop_jokers')
+        if not shop_jokers:
+            return None
+        result = JokerShop(data=shop_jokers)
+        return result
+
+    def _load_random_rates(self) -> RandomRates:
+        result = RandomRates(
+            tarot=self._data['GAME']['tarot_rate'],
+            joker=self._data['GAME']['joker_rate'],
+            spectral=self._data['GAME']['spectral_rate'],
+            planet=self._data['GAME']['planet_rate'],
+            edition=self._data['GAME']['edition_rate'],
+            rental=self._data['GAME']['rental_rate'],
+            hand_card=self._data['GAME']['playing_card_rate'],
+        )
+        return result
+
+    @property
+    def random_rates(self) -> RandomRates:
+        return self._random_rates
 
     def _load_jokers(self) -> list[Joker]:
         result = []
@@ -79,8 +116,11 @@ class JkrEditor(object):
 
         # save jokers
         jokers = dict()
+        used_jokers = dict()
         for joker in self._jokers:
             jokers[joker.index] = joker.data
+            used_jokers[joker.code] = True
+        result['GAME']['used_jokers'] = used_jokers
         result['cardAreas']['jokers']['cards'] = jokers
 
         # save money
@@ -90,6 +130,28 @@ class JkrEditor(object):
         result['GAME']['max_jokers'] = self._joker_slots
         result['cardAreas']['jokers']['config']['card_limit'] = self._joker_slots
         result['cardAreas']['jokers']['config']['temp_limit'] = self._joker_slots
+
+        # save hand size
+        result['cardAreas']['hand']['config']['real_card_limit'] = self._hand_size
+        result['cardAreas']['hand']['config']['card_limit'] = self._hand_size
+        result['cardAreas']['hand']['config']['temp_limit'] = self._hand_size
+
+        # save random rates
+        result['GAME']['joker_rate'] = self._random_rates.joker
+        result['GAME']['tarot_rate'] = self._random_rates.tarot
+        result['GAME']['planet_rate'] = self._random_rates.planet
+        result['GAME']['edition_rate'] = self._random_rates.edition
+        result['GAME']['rental_rate'] = self._random_rates.rental
+        result['GAME']['spectral_rate'] = self._random_rates.spectral
+        result['GAME']['playing_card_rate'] = self._random_rates.hand_card
+
+        # save joker shop
+        if self._joker_shop:
+            result['cardAreas']['shop_jokers'] = self._joker_shop.data
+            result['GAME']['shop']['joker_max'] = self._joker_shop.max_slots
+
+        # save probabilities
+        result['GAME']['probabilities']['normal'] = self._probabilities
 
         return result
 
@@ -135,10 +197,9 @@ class JkrEditor(object):
             index = self.tags[-1].index + 1
             tally = self.tags[-1].tally + 1
 
-        tag = Tag.init(
-            code=code,
+        tag = Tag(
             index=index,
-            tally=tally
+            data=Tag.generate_data(code=code, tally=tally),
         )
 
         self._tags.append(tag)
@@ -170,5 +231,14 @@ class JkrEditor(object):
 
         if joker.edition and joker.edition.code == CARD_NEGATIVE_EDITION:
             self._joker_slots += 1
+
+        if joker.code == 'j_troubadour':
+            self._hand_size += 2
+
+        elif joker.code == 'j_juggler':
+            self._hand_size += 1
+
+        elif joker.code == 'j_oops':
+            self._probabilities *= 2
 
         return joker

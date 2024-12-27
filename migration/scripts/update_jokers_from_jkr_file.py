@@ -23,7 +23,7 @@ for index, joker_data in jkr_editor._data['cardAreas']['jokers']['cards'].items(
     joker = dict(
         code=code,
         label=joker_data['label'],
-        sort_id=joker_data['sort_id'],
+        sort_id=joker_data.get('sort_id'),
         ability=joker_data['ability'],
         base_cost=joker_data['base_cost'],
         cost=joker_data['cost'],

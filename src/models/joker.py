@@ -11,7 +11,7 @@ class BaseJoker(BaseModel):
     code: str
     label: str
     ability: dict
-    sort_id: int = None
+    sort_id: int | None = None
     cost: int
     sell_cost: int
     base_cost: int
@@ -34,6 +34,10 @@ class Joker(DataModel):
         self._base = self._load_base()
 
         self._edition = self._load_edition()
+
+    @property
+    def code(self) -> str:
+        return self._base.code
 
     def _load_edition(self) -> JokerEdition | None:
         edition_data = self._data.get('edition')

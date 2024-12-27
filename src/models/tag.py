@@ -8,24 +8,22 @@ class Tag(DataModel):
     tally: int = 438
     code: str | None = None
 
-    def __init__(self,**kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
         self.code = self._data['key']
 
     @classmethod
-    def init(cls, code: str, index: int, tally: int) -> 'Tag':
-        return cls(
-            index=index,
-            data={
-                'key': code,
-                'tally': tally,
-                'ability': {
-                    'orbital_hand': "[poker hand]"
-                },
-            }
-        )
+    def generate_data(cls, code: str, tally: int) -> dict:
+        result = {
+            'key': code,
+            'tally': tally,
+            'ability': {
+                'orbital_hand': "[poker hand]"
+            },
+        }
 
+        return result
 
     @property
     def data(self) -> dict:
